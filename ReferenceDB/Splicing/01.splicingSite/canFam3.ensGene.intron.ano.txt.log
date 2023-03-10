@@ -1,0 +1,8 @@
+#open 3add_gene_ano/canFam3.ensGene.desc
+#write 10splicingSite/canFam3.ensGene.intron.ano.txt, 10splicingSite/canFam3.ensGene.ss5.fa, 10splicingSite/canFam3.ensGene.ss3.fa
+#counts:
+input.intron	242269
+input.transcript	29881
+output.ss3	182443
+output.ss5	181693
+
