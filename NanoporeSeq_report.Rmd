@@ -1,0 +1,325 @@
+---
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+```{r date, echo=FALSE}
+Date_now=format(Sys.time(), '%B %d, %Y');
+load("report.R.img")
+library(knitr)
+library(pander)
+report_section_i=0;
+```
+
+---
+title: "Nanopore sequencing Report"
+author: ""
+date: `r Date_now`
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+  word_document:
+    reference_docx: word.template.docx
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+report_section_i=report_section_i+1
+```
+
+
+
+```{r sampleConclusion_d, echo = FALSE, results='asis'}
+
+
+if("sampleConclusion_d" %in% ls()){
+  cat(paste0("\n### Section ",report_section_i,": Summary of NGS results:  \n"))
+  if(!(out_sample %in% "All") & out_sample %in% sample_info_d$sample ){
+    sampleConclusion_d=sampleConclusion_d[sampleConclusion_d$Sample==out_sample, ]
+  }
+  for(i in 1:nrow(sampleConclusion_d)){
+    cat( paste(c("* **Sample ",sampleConclusion_d[i,"Sample"],"**  \n",as.character(unlist(sampleConclusion_d[i,c("SampleInfo","ReadInfo","PurityInfo","HostCellDNAinfo")])),"  \n"),collapse="") )
+  }
+  report_section_i=report_section_i+1
+}
+
+```
+
+
+```{r sample_info_d, echo = FALSE, results='asis'}
+
+if(out_sample %in% "All"){
+  cat(paste0("\n## Sequencing Project ID: ",study_name))
+  
+}
+
+if("sample_info_d" %in% ls()){
+  cat(paste0("\n### Section ",report_section_i,": Sequencing sample information:"))
+  cat(paste0("\n**Table ",report_section_i," Sample information: **\n"))
+  if(!(out_sample %in% "All") & out_sample %in% sample_info_d$sample ){
+    sample_info_d=sample_info_d[sample_info_d$sample==out_sample, ]
+  }
+  print( kable(sample_info_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+  report_section_i=report_section_i+1
+}
+
+```
+
+
+```{r MinIONQC_sum_d, echo = FALSE, results='asis'}
+if(out_sample %in% "All"){
+  cat(paste0("\n### Section ",report_section_i,": Sequencing overall QC:"))
+  if("MinIONQC_sum_d" %in% ls()){
+    cat(paste0("\n**Table ",report_section_i,".1 Read number, length, quality etc.: **\n"))
+    print( kable(MinIONQC_sum_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+  }
+}
+
+
+```
+
+
+
+
+```{r MinIONQC_plots, echo=FALSE,message=FALSE, results="asis", out.width='100%', collapse=FALSE}
+if(out_sample %in% "All"){
+  if("MinIONQC_sum_d" %in% ls()){
+    sub_section=1
+    cat(paste0("\n**MinIONQC plots: **\n"))
+    for(MinIOQC_plot_name in MinIOQC_plot_names){
+      sub_section=sub_section+1
+      cat(paste0("\n\n\n\n**Figure ",report_section_i,".",sub_section," ", MinIOQC_plot_name,":**\n"))
+      cat( paste0('![](MinIONQC/',MinIOQC_plot_name,'.png)\n') )
+    }
+    report_section_i=report_section_i+1
+  }
+}
+```
+
+
+
+```{r demultiplexing_stat_d, echo = FALSE, results='asis'}
+
+cat(paste0("\n### Section ",report_section_i,": Read counts:"))
+cat(paste0("\n**Table ",report_section_i,".1 Read number for each sample: **"))
+if(!(out_sample %in% "All") & out_sample %in% demultiplexing_stat_d$Sample ){
+  demultiplexing_stat_d=demultiplexing_stat_d[demultiplexing_stat_d$Sample==out_sample, ]
+}
+kable(demultiplexing_stat_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") )
+report_section_i=report_section_i+1
+
+```
+
+
+```{r mapping_stats_d, echo = FALSE, results='asis'}
+cat(paste0("\n### Section ",report_section_i,": QC of read mapping:"))
+cat(paste0("\n**Table ",report_section_i,".1 Read mapping counts at each step of read filtering based on mapping behavior: **"))
+if(!(out_sample %in% "All") & out_sample %in% mapping_stats_d$Sample ){
+  mapping_stats_d=mapping_stats_d[mapping_stats_d$Sample==out_sample, ]
+}
+kable(mapping_stats_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") )
+report_section_i=report_section_i+1
+
+```
+
+
+
+```{r mapping_detail_d, echo = FALSE, results='asis'}
+cat(paste0("\n### Section ",report_section_i,": Estimated AAV purity and impurities based on read mapping: "))
+if(!(out_sample %in% "All") & out_sample %in% impurity_summary_d$Sample ){
+  purity_summary_d=purity_summary_d[purity_summary_d$Sample==out_sample, ]
+  impurity_summary_d=impurity_summary_d[impurity_summary_d$Sample==out_sample, ]
+}
+
+cat(paste0("\n**Table ",report_section_i,".1 A summary of AAV purity and impurities based on accumulated read coverage length: **"))
+kable(purity_summary_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") )
+cat(paste0("\n\n**Table ",report_section_i,".2 Summary of sources of impurity :**\n"))
+kable(impurity_summary_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") )
+
+sub_section=2
+if(out_sample %in% "All" ){
+  report_sample_is=1:length(report_samples)
+}else{
+  report_sample_is=match(out_sample, report_samples)
+}
+
+for(i in report_sample_is){
+  report_sample=report_samples[i]
+  cat(paste0("\n\n**Table ",report_section_i,".",sub_section+1,"  Mapping details for sample ", report_sample,":**\n"))
+  sub_section=sub_section+1
+  if(is.null(mapping_detail_dlist)){
+    mapping_detail_d1=mapping_detail_d[,c("reference","region","ref_size", counts_names[i], Length_names[i], PercCount_names[i], PercLen_names[i])]
+  }else{
+    mapping_detail_d1=mapping_detail_dlist[[report_samples[i]]][,c("reference","region","ref_size", counts_names[i], Length_names[i], PercCount_names[i], PercLen_names[i])]
+  }
+  mapping_detail_d1[,c(PercCount_names[i], PercLen_names[i])]=round(mapping_detail_d1[,c(PercCount_names[i], PercLen_names[i])], 5)
+  mapping_detail_d1=mapping_detail_d1[order(mapping_detail_d1[,PercLen_names[i]], decreasing=T), ]
+  names(mapping_detail_d1)=c("Reference","Region", "Ref.Size(nt)","ReadCount","ReadCoverage(nt)","ReadCount%","ReadCoverage%")
+  print( kable(mapping_detail_d1, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+
+}
+
+
+report_section_i=report_section_i+1
+
+```
+
+<br><br>
+
+
+```{r ReadCoveragePlots, echo=FALSE,message=FALSE, results="asis", out.width='100%', collapse=FALSE, fig.cap=report_section_i}
+cat(paste0("\n### Section ",report_section_i,": Read coverage plot in different vectors: "))
+
+sub_section=0
+for(read_cov_pic_f in read_cov_pic_fl[[out_sample]]){
+  vector_name=gsub(".readCoverage|.png","",read_cov_pic_f)
+  sub_section=sub_section+1
+  cat('<br><br>')
+  cat( paste0('![](readCov_plot/',out_sample,"/",read_cov_pic_f,')') )
+  cat(paste0("\n\n**Figure ",report_section_i,".",sub_section,"  vector name and region: ", vector_name,"**\n\n"))
+}
+report_section_i=report_section_i+1
+
+```
+
+<br><br>
+
+
+```{r ReadCoverageLength, echo=FALSE,message=FALSE, results="asis", out.width='100%', collapse=FALSE, fig.cap=report_section_i}
+cat(paste0("\n### Section ",report_section_i,": Read coverage length in different regions: "))
+
+sub_section=0
+
+for(i in report_sample_is){
+  report_sample=report_samples[i]
+  readCovLen_pic_f=paste0(report_sample, ".readCovLen.boxplot.png")
+  cat('<br><br>')
+  cat(paste0("\n\n**Table ",report_section_i,".",sub_section+1,"  Read coverage length stats for sample ", report_sample,":**\n"))
+  readCovLen_stats_d1=readCovLen_stats_dlist[[report_sample]]
+  print( kable(readCovLen_stats_d1, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+
+  cat(paste0("\n\n**Figure ",report_section_i,".",sub_section+1," Boxplot of read coverage length for sample ", report_sample,"**\n\n"))
+  cat( paste0('![](readCovLen_boxplot/',readCovLen_pic_f,')  ') )
+  sub_section=sub_section+1
+}
+report_section_i=report_section_i+1
+
+```
+
+<br><br>
+
+
+```{r ChimericReadPlots, echo=FALSE,message=FALSE, results="asis", out.width='100%', collapse=FALSE, fig.cap=report_section_i}
+cat(paste0("\n### Section ",report_section_i,": Chimeric reads plot in different vectors: "))
+
+sub_section=0
+for(i in report_sample_is){
+  report_sample=report_samples[i]
+  for(chimericRead_pic_f in chimericRead_pic_fl[[report_sample]]){
+    vector_name=gsub(".chimeric|.png","",chimericRead_pic_f)
+    sub_section=sub_section+1
+    cat('<br><br>')
+    cat( paste0('![](readCov_plot/',report_sample,"/",chimericRead_pic_f,')') )
+    cat(paste0("\n\n**Figure ",report_section_i,".",sub_section,":  Chimeric read plot for sample ",report_sample, " in vector ", vector_name,"**\n\n"))
+  }
+  sub_section=sub_section+1
+}
+report_section_i=report_section_i+1
+
+```
+
+
+<br><br>
+
+
+```{r chimericEvent_tables, echo=FALSE,message=FALSE, results="asis", out.width='100%', collapse=FALSE, fig.cap=report_section_i}
+cat(paste0("\n### Section ",report_section_i,": Chimeric read counts, percentage and top events: "))
+
+sub_section=0
+
+for(i in report_sample_is){
+  report_sample=report_samples[i]
+  cat('<br><br>')
+  cat(paste0("\n\n**Table ",report_section_i,".",sub_section+1,"  chimeric read statistics for ", report_sample,":**\n"))
+  chimericRead_stats_d1=chimericRead_stats_dlist[[report_sample]]
+  print( kable(chimericRead_stats_d1, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+  sub_section=sub_section+1
+
+  cat('<br><br>')
+  chimericEvent_d1=chimericEvent_dlist[[report_sample]]
+  chimericEvent_d1$HomologousToGOI<-grepl("NNNNN",chimericEvent_d1$template_seq,ignore.case=T) #fusion event involving homologous regions which were masked by blat GOI plasmid sequence
+  chimericEvent_d1=chimericEvent_d1[,!grepl("template_seq",names(chimericEvent_d1))]
+  Report_min_readCounts=1
+  if(max(chimericEvent_d1$count)>1 ){
+    chimericEvent_d1=chimericEvent_d1[chimericEvent_d1$count>1, ] #report events of at least two reads
+    Report_min_readCounts=2
+  }
+  totalChimericEventNum=nrow(chimericEvent_d1)
+  if_reported_All=T
+  if(nrow(chimericEvent_d1)>100){
+    chimericEvent_d1=chimericEvent_d1[1:100,] #only report up to 100 events
+    if_reported_All=F
+  }
+  cat(paste0("\n\n**Table ",report_section_i,".",sub_section+1, " chimeric events for ", report_sample,
+    " (read counts>=",Report_min_readCounts,", Total events# ",totalChimericEventNum,
+    ", reported ",ifelse(if_reported_All,totalChimericEventNum,100),  ")**\n"))
+  print( kable(chimericEvent_d1, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+  sub_section=sub_section+1
+}
+report_section_i=report_section_i+1
+
+```
+
+
+
+<br><br>
+
+
+```{r hostCellDNA_anno, echo=FALSE,message=FALSE, results="asis"}
+if(out_sample %in% c("All", AAV_samples)){
+  cat(paste0("\n### Section ",report_section_i,": Annotation of read (cluster) mapped to host cell genome and genes (including oncogenes): "))
+
+  Max_row_num=50;
+  if(out_sample %in% "All" ){
+    report_sample="AllSamples"
+  }else{
+    report_sample=out_sample
+    peak_summary_d=peak_summary_d[peak_summary_d$sample %in% out_sample, ]
+  }
+  report_excel_f=paste0("hostCellDNA_anno/hostCellDNA_anno.",report_sample,".xlsx")
+  cat('<br><br>')
+  cat(paste0("\n\n**Table ",report_section_i,".1  Summary of read (read cluster) counts in any genes or oncogenes (", report_sample,"):**\n"))
+  print( kable(peak_summary_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+
+  peak_anno_d=hostCellAnno_l[[report_sample]]
+  names(peak_anno_d)=change_values(names(peak_anno_d), c("rname","SYMBOL"),c("Chr","GENE"))
+  Num_name=paste0("Num_",report_sample)
+  Pval_name=paste0("Pval_",report_sample)
+  report_headers=c("Chr","clu_from","clu_to","cluster_size", Num_name,Pval_name,
+                   "GENE","distanceToTSS","annotation_region", "Role.in.Cancer")
+  # "annotation","geneLength","geneStrand","GENENAME","Mutation.Types","Translocation.Partner","cancer_gene_census_tier",
+  peak_anno_d=peak_anno_d[order(peak_anno_d[,Pval_name]),] 
+  if_exon_oncogene=grepl("oncogene",peak_anno_d$Role.in.Cancer) & peak_anno_d$annotation_region %in% c("Promoter", "5' UTR", "Exon")
+  peak_anno_d_onco=peak_anno_d[if_exon_oncogene, report_headers]
+  
+  out_topPeak_d=peak_anno_d[,report_headers]
+  if(nrow(out_topPeak_d)>Max_row_num){out_topPeak_d=out_topPeak_d[1:Max_row_num,]}
+
+  cat(paste0("\n\n**Table ",report_section_i,".2  Top (up to ",Max_row_num,") read clusters (", report_sample,"):**\n"))
+  print( kable(out_topPeak_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+
+  cat(paste0("\n\n**Table ",report_section_i,".3  All ",nrow(peak_anno_d_onco)," Read clusters mapped to promoter, 5'UTR or exonic region of oncogenes (", report_sample,"):**\n"))
+  print( kable(peak_anno_d_onco, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+  
+  cat( paste0("\n\n**Table",report_section_i,".4  [All Read clusters in an Excel table](",report_excel_f,") (", report_sample,"):**\n") )
+
+  report_section_i=report_section_i+1
+  
+}  
+
+```

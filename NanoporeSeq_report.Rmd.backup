@@ -1,0 +1,170 @@
+---
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+```{r date, echo=FALSE}
+Date_now=Sys.Date();
+load("report.R.img")
+library(knitr)
+library(pander)
+report_section_i=0;
+```
+
+---
+title: "Nanopore sequencing Report"
+author: ""
+date: `r Date_now`
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+  word_document:
+    reference_docx: word.template.docx
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+report_section_i=report_section_i+1
+```
+
+
+```{r sample_info_d, echo = FALSE, results='asis'}
+
+if(out_sample %in% "All"){
+  cat(paste0("\n## Sequencing Project ID: ",study_name))
+  cat(paste0("\n### Section ",report_section_i,": Sequencing overall QC:"))
+}
+
+if("sample_info_d" %in% ls()){
+  cat(paste0("\n**Table ",report_section_i," Sample information: **\n"))
+  print( kable(sample_info_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+  report_section_i=report_section_i+1
+}
+
+```
+
+### Section `r report_section_i`: Sequencing overall QC:  
+
+```{r MinIONQC_sum_d, echo = FALSE, results='asis'}
+if("MinIONQC_sum_d" %in% ls()){
+  cat(paste0("\n**Table ",report_section_i,".1 Read number, length, quality etc.: **\n"))
+  print( kable(MinIONQC_sum_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+}
+
+```
+
+
+
+
+```{r MinIONQC_plots, echo=FALSE,message=FALSE, results="asis", out.width='100%', collapse=FALSE}
+if("MinIONQC_sum_d" %in% ls()){
+  sub_section=1
+  cat(paste0("\n**MinIONQC plots: **\n"))
+  for(MinIOQC_plot_name in MinIOQC_plot_names){
+    sub_section=sub_section+1
+    cat(paste0("\n\n\n\n**Figure ",report_section_i,".",sub_section," ", MinIOQC_plot_name,":**\n"))
+    cat( paste0('![](MinIONQC/',MinIOQC_plot_name,'.png)\n') )
+  }
+  report_section_i=report_section_i+1
+}
+```
+
+
+### Section `r report_section_i`: Demultiplexing:  
+**Table `r report_section_i`.1 Read number for each sample after demultiplexing: **
+
+```{r demultiplexing_stat_d, echo = FALSE, results='markup'}
+
+kable(demultiplexing_stat_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") )
+report_section_i=report_section_i+1
+
+```
+
+
+### Section `r report_section_i`: QC of read mapping:  
+**Table `r report_section_i`.1 Read mapping counts at each step of read filtering based on mapping behavior: **
+
+```{r mapping_stats_d, echo = FALSE, results='markup'}
+
+kable(mapping_stats_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") )
+report_section_i=report_section_i+1
+
+```
+
+
+### Section `r report_section_i`: Estimated AAV purity based on read mapping:  
+**Table `r report_section_i`.1 Estimated AAV purity based on accumulated read coverage length on the desired gene-of-interest (GOI) region: **
+
+```{r mapping_detail_d, echo = FALSE, results='asis'}
+
+kable(purity_summary_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") )
+
+cat(paste0("\n\n**Table ",report_section_i,".2 Summary of sources of impurity :**\n"))
+kable(impurity_summary_d, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") )
+
+sub_section=2
+for(i in 1:length(report_samples)){
+  report_sample=report_samples[i]
+  cat(paste0("\n\n**Table ",report_section_i,".",sub_section+i,"  Mapping details for sample ", report_sample,":**\n"))
+  if(is.null(mapping_detail_dlist)){
+    mapping_detail_d1=mapping_detail_d[,c("reference","region","ref_size", counts_names[i], Length_names[i], PercCount_names[i], PercLen_names[i])]
+  }else{
+    mapping_detail_d1=mapping_detail_dlist[[report_samples[i]]][,c("reference","region","ref_size", counts_names[i], Length_names[i], PercCount_names[i], PercLen_names[i])]
+  }
+  mapping_detail_d1[,c(PercCount_names[i], PercLen_names[i])]=round(mapping_detail_d1[,c(PercCount_names[i], PercLen_names[i])], 3)
+  mapping_detail_d1=mapping_detail_d1[order(mapping_detail_d1[,PercLen_names[i]], decreasing=T), ]
+  names(mapping_detail_d1)=c("Reference","Region", "Ref.Size(nt)","ReadCount","ReadCoverage(nt)","ReadCount%","ReadCoverage%")
+  print( kable(mapping_detail_d1, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+
+}
+
+
+report_section_i=report_section_i+1
+
+```
+
+<br><br>
+
+### Section `r report_section_i`: Read coverage plot in different vectors:  
+
+```{r ReadCoveragePlots, echo=FALSE,message=FALSE, results="asis", out.width='100%', collapse=FALSE, fig.cap=report_section_i}
+sub_section=0
+for(read_cov_pic_f in read_cov_pic_fs){
+  vector_name=gsub("readCoverage.|.png","",read_cov_pic_f)
+  sub_section=sub_section+1
+  cat('<br><br>')
+  cat( paste0('![](readCov_plot/',read_cov_pic_f,')  ') )
+  cat(paste0("\n\n**Figure ",report_section_i,".",sub_section,"  vector name and region: ", vector_name,"**\n\n"))
+}
+report_section_i=report_section_i+1
+
+```
+
+<br><br>
+
+### Section `r report_section_i`: Read coverage length in different regions:  
+
+```{r ReadCoverageLength, echo=FALSE,message=FALSE, results="asis", out.width='100%', collapse=FALSE, fig.cap=report_section_i}
+sub_section=0
+
+for(i in 1:length(report_samples)){
+  report_sample=report_samples[i]
+  readCovLen_pic_f=paste0(report_sample, ".readCovLen.boxplot.png")
+  cat('<br><br>')
+  cat(paste0("\n\n**Table ",report_section_i,".",sub_section+i,"  Read coverage length stats for sample ", report_sample,":**\n"))
+  readCovLen_stats_d1=readCovLen_stats_dlist[[report_sample]]
+  print( kable(readCovLen_stats_d1, caption = "",align="c", row.names=F, format.args = list( big.mark = ",") ) )
+
+  cat(paste0("\n\n**Figure ",report_section_i,".",sub_section+i," Boxplot of read coverage length for sample ", report_sample,"**\n\n"))
+  cat( paste0('![](readCovLen_boxplot/',readCovLen_pic_f,')  ') )
+ 
+
+}
+report_section_i=report_section_i+1
+
+```
