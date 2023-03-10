@@ -1,5 +1,5 @@
 ##2022/06/24 WL: added function to mask fastq sequences from other references with homology to GOI plasmid (use blat and then bedtools maskfasta). All minimap2 index files earlier than this date need to be rebuilt!
-##2022/09/23 WL: can automatically create bash code to setup parameters for the pipeline
+
 
 #setwd("/drive2/wli/analyze/dep_seq/othProject/Nanopore_seq/target_index/")
 setwd("/home/Research_Archive/ProcessedData/Nanopore_seq/target_index/")
@@ -16,50 +16,23 @@ project_name="2021-04-02_AAV_SEQ"
 project_name="2021-05-03_AAV_SEQ_CMC_3AS_Justin"
 project_name="2022-04-19_AAV_SEQ"
 project_name="AADC_BioReliance_miSeq_merge"
-project_name="202208_AADC_rcAAV_Seq"
-project_name="AADC_WuXi_AAVseq_202210"
+#project_name="2022-10-18_AAV_SEQ"
+project_name="2022-10-18_AAV_SEQ"
 
 summary_folder="/drive2/wli/analyze/summary/GeneTherapy/NanoporeSequencing/"
 plasmid_seq_folder=paste0(summary_folder, "VirusGenomeSequences/")
 hg_fa_dir="/drive2/wli/analyze/Pipeline/ReferenceDB/ucsc/genomes/hg19"
 Ecoli_fa="Ecoli/GCF_000005845.2_ASM584v2_genomic.fna"
 Ad5_fa=paste0(plasmid_seq_folder, "Ad5/Human_Ad5_first5k.fa") 
-Ad5_bedf=paste0(plasmid_seq_folder, "Ad5/Human_Ad5_first5k.bed") 
 analysis_folder="/home/Research_Archive/ProcessedData/Nanopore_seq/"; #"/drive2/wli/analyze/dep_seq/othProject/Nanopore_seq/"
 sample_info_f=paste0(analysis_folder,project_name,"/",project_name,"-Samples.xlsx")
 othGOI_fa_dir=paste0(analysis_folder,project_name,"/othGOI_fa/")
 out_geneFeat_dir=paste0(analysis_folder,project_name,"/geneFeature/")
 E1AB_feature_f=paste0(summary_folder,"/VirusGenomeSequences/Ad5/Human_Ad5_first5k.GOI_info.txt")
 
-AAVseqPipeline_root="/drive2/wli/analyze/dep_seq/othProject/Nanopore_seq/"
-out_pipeline_sh_f=paste0(analysis_folder,project_name,"/",project_name,"-pipeline.sh")
-pipeline_template_f=paste0(AAVseqPipeline_root, "AAV_nanopore_seq.pipeline.template_WL.sh")
-
 library("openxlsx")
 
 sample_info_d=read.xlsx(sample_info_f)
-NumberOfGOIs=length(unique(sample_info_d$GOI))
-if_multiple_GOI_in1batch=NumberOfGOIs>1
-##create sample setting bash script:
-sampleSetting_sh_codes=c(
-	""
-	,paste0("study_name=",project_name)
-	,paste0("samples=(",paste(sample_info_d[,1] , collapse=" "),")")
-	,paste0("helpers=(",paste(sample_info_d$pHelper , collapse=" "),")")
-	,paste0("RepCaps=(",paste(sample_info_d$pRepCap , collapse=" "),")")
-	,paste0("GOIs=(",paste(sample_info_d$GOI , collapse=" "),")")
-	,paste0("GOIfolders=(",paste(sample_info_d$GOI_folder , collapse=" "),")")
-	,paste0("colors=(",paste(sample_info_d$Color , collapse=" "),")")
-	,paste0("barcodes=(",paste(sample_info_d$barcode , collapse=" "),")")
-	,paste0("if_multiple_GOI_in1batch=",as.numeric(if_multiple_GOI_in1batch))
-	,""
-)
-write(sampleSetting_sh_codes, file=out_pipeline_sh_f, ncol=1)
-
-system(paste0("cat ",pipeline_template_f ," >>",out_pipeline_sh_f))
-system(paste0("chmod +x ", out_pipeline_sh_f))
-
-
 index_d=sample_info_d[,c("pHelper","pRepCap","GOI","GOI_folder")]; dim(index_d)
 index_d=index_d[!duplicated(index_d), ]; dim(index_d)
 
@@ -81,7 +54,8 @@ index_d$maskfasta_cmd=paste0("bedtools maskfasta -fi ", index_d$final_fa_f,".all
 
 index_d$cat_all_fa_cmd=paste0("cat ", index_d$GOI_fa, " ", index_d$final_fa_f,".allOthers.masked", " >", index_d$final_fa_f)
 
-index_d$minimap2_cmd=paste("minimap2 -t 8 -d ",index_d$final_mmi_f, index_d$final_fa_f)
+index_d$minimap2_cmd=paste("minimap2 -t 6 -d ",index_d$final_mmi_f, index_d$final_fa_f)
+
 
 
 ##combine gene feature table for all plasmids or selected genes (eg. E1A, E1B)
@@ -91,18 +65,7 @@ geneFeature_fs=paste0( plasmid_seq_folder,index_d$GOI_folder,"/",index_d$GOI,".G
 )
 index_d$cat_geneFeature_cmd=paste("cat", geneFeature_fs, E1AB_feature_f, " | perl -ne 'print if ++$k{$_}==1' >", index_d$final_geneFeature_f )
 
-##create a bed file with all gene features of plasmids and Ad5 
-index_d$cat_all_bed_cmd=paste("cat "
-	,paste0(plasmid_seq_folder, index_d$GOI_folder,"/",index_d$GOI,".bed")
-	,ifelse(is.na(index_d$pHelper)," ", paste0(plasmid_seq_folder,"Helper/", index_d$pHelper, ".bed "))
-	,ifelse(is.na(index_d$pRepCap)," ", paste0(plasmid_seq_folder,"RepCap/", index_d$pRepCap, ".bed"))
-	,Ad5_bedf
-	,paste0(index_d$final_fa_f,".GOI.blat.bed")
-	,">"
-	,paste0(index_d$index_folder,"/",index_d$index_folder,".bed")
-)
 write.table(index_d, file=paste0(sample_info_f,".make_indexes_commands.txt"), col.names=T, row.names=F, sep="\t", quote=F)
-
 
 forceRewrite=F
 for(i in 1:nrow(index_d)){
@@ -118,12 +81,10 @@ for(i in 1:nrow(index_d)){
 		psl_d=read.table(psl_f, sep="\t", header=F, stringsAsFactors=F, quote="")
 		names(psl_d)=unlist(strsplit("match mismatch rep.match Ns Qgapcount Qgapbases Tgapcount Tgapbases strand Qname Qsize Qstart Qend Tname Tsize Tstart Tend blockcount blockSizes qStarts tStarts"," "))
 		pslbed_f=paste0(index_d$final_fa_f[i],".GOI.blat.bed"); pslbed_f
-		pslbed_v=unlist(apply(psl_d[,c("Tname","tStarts","blockSizes","Qname", "qStarts","strand")],1,function(v){
+		pslbed_v=unlist(apply(psl_d[,c("Tname","tStarts","blockSizes")],1,function(v){
 			tStarts=as.numeric(unlist(strsplit(v[2],",")))
 			blockSizes=as.numeric(unlist(strsplit(v[3],",")))
-			qStarts=as.numeric(unlist(strsplit(v[5],",")))
-			qEnds=qStarts+blockSizes
-			paste(rep(v[1], length(tStarts)), tStarts, tStarts+blockSizes, paste0("HomologyTo-",v[4],":",qStarts,"-",qEnds,v[6]),1,"+", sep="\t")
+			paste(rep(v[1], length(tStarts)), tStarts, tStarts+blockSizes, sep="\t")
 		}))
 		write(pslbed_v, file=pslbed_f, ncol=1)
 		system( index_d$maskfasta_cmd[i] )
@@ -134,11 +95,8 @@ for(i in 1:nrow(index_d)){
 		system(paste0("cut -f1,2 ",index_d$final_fa_f[i],".fai > ",index_d$final_fa_f[i],".sizes"))
 		##remove temporal files:
 		system(paste0("rm ", index_d$final_fa_f[i], ".allOthers*"))
-		system(index_d$cat_all_bed_cmd[i])
 	}
 }
-
-
 
 ##create a .fa file for all GOI sequences (used for the second step of mapping to remove reads that were wrongly demultiplexed)
 if(nrow(index_d)>1){
@@ -159,10 +117,4 @@ if(nrow(index_d)>1){
 for(i in 1:nrow(index_d)){
 	system( index_d$cat_geneFeature_cmd[i] )
 }
-
-##create IGV genome index using the final .fa file and the gene feature bed files
-
-
-
-
 
